@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NYC Events</string>
+    <string name="loading">Loading events...</string>
+    <string name="no_events">No events found for this week</string>
+    <string name="error_loading">Error loading events. Showing sample events.</string>
+</resources>
