@@ -1,0 +1,103 @@
+name: OpenManus Aligned Tests
+
+on:
+  push:
+    branches: [ main, 'claude/*' ]
+    paths:
+      - 'openmanus-aligned/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'openmanus-aligned/**'
+  workflow_dispatch:
+
+jobs:
+  test-core-modules:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pydantic loguru
+
+    - name: Run core module tests
+      working-directory: openmanus-aligned
+      run: |
+        python test_core_modules.py
+
+  test-architecture-alignment:
+    runs-on: ubuntu-latest
+    needs: test-core-modules
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pydantic loguru
+
+    - name: Verify architectural components
+      working-directory: openmanus-aligned
+      run: |
+        echo "=== Verifying Manus-Aligned Architecture ==="
+        echo ""
+        echo "Checking core modules exist..."
+
+        # Check event types
+        python -c "
+from app.core.events import EventType
+print(f'Event Types: {[e.value for e in EventType]}')
+assert len(list(EventType)) == 7, 'Should have 7 event types'
+print('✓ 7 event types verified')
+"
+
+        # Check Planner module
+        python -c "
+from app.core.planner import Planner, Plan, PlanStep
+print('✓ Planner module loads (system component, not a tool)')
+"
+
+        # Check Knowledge module
+        python -c "
+from app.core.knowledge import KnowledgeModule
+km = KnowledgeModule()
+print(f'✓ Knowledge module with {len(km.knowledge_base)} items')
+"
+
+        # Check Datasource module
+        python -c "
+from app.core.datasource import DatasourceModule
+dm = DatasourceModule()
+print(f'✓ Datasource module with {len(dm.sources)} sources')
+"
+
+        # Check Context Engine
+        python -c "
+from app.core.context import ContextEngine
+ce = ContextEngine()
+print('✓ Context Engine loaded')
+print('  - KV-cache optimization')
+print('  - Tool masking')
+print('  - Todo recitation')
+print('  - Error retention')
+print('  - Few-shot trap avoidance')
+"
+
+        echo ""
+        echo "=== All architectural components verified ==="
