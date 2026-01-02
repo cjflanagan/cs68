@@ -16,12 +16,16 @@ the agent must choose to use.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
 import uuid
+import logging
 
-from app.llm import LLM
-from app.logger import logger
+# Lazy import to avoid config loading at module import time
+if TYPE_CHECKING:
+    from app.llm import LLM
+
+logger = logging.getLogger(__name__)
 
 
 class StepStatus(str, Enum):
@@ -170,7 +174,7 @@ class Planner(BaseModel):
     agent needing to explicitly invoke it.
     """
 
-    llm: LLM = Field(default_factory=LLM)
+    llm: Optional[Any] = None  # LLM instance, lazily loaded
     current_plan: Optional[Plan] = None
     plan_history: List[Plan] = Field(default_factory=list)
 
@@ -181,6 +185,13 @@ class Planner(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+    def _get_llm(self):
+        """Lazily load and return the LLM instance."""
+        if self.llm is None:
+            from app.llm import LLM
+            self.llm = LLM()
+        return self.llm
 
     async def analyze_request(self, request: str) -> Dict[str, Any]:
         """Analyze a user request to determine if planning is needed.
@@ -205,7 +216,7 @@ Focus on identifying:
 - Tasks with dependencies between steps
 - Tasks that benefit from systematic execution
 """
-        response = await self.llm.ask(
+        response = await self._get_llm().ask(
             messages=[{"role": "user", "content": analysis_prompt}],
             system_msgs=[{
                 "role": "system",
@@ -247,7 +258,7 @@ STEPS:
 
 Keep steps focused and achievable. Do not include meta-steps like "create a plan".
 """
-        response = await self.llm.ask(
+        response = await self._get_llm().ask(
             messages=[{"role": "user", "content": planning_prompt}],
             system_msgs=[{
                 "role": "system",
@@ -403,7 +414,7 @@ Create a new plan that:
 
 Format as before with TITLE, OBJECTIVE, and numbered STEPS.
 """
-        response = await self.llm.ask(
+        response = await self._get_llm().ask(
             messages=[{"role": "user", "content": replan_prompt}],
             system_msgs=[{
                 "role": "system",
